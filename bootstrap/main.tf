@@ -93,6 +93,58 @@ resource "aws_iam_user_policy_attachment" "ci_ec2" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
 }
 
+# Permite gerenciar IAM role + instance profile do EC2 (usado para dar permissao
+# SSM na instancia). Escopo restrito a recursos com prefixo desafio-ods-* — nao
+# permite criar/mexer em qualquer role da conta.
+resource "aws_iam_user_policy" "ci_iam_app" {
+  name = "${local.ci_user}-iam-app"
+  user = aws_iam_user.ci.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "ManageAppRole"
+        Effect = "Allow"
+        Action = [
+          "iam:CreateRole",
+          "iam:DeleteRole",
+          "iam:GetRole",
+          "iam:UpdateRole",
+          "iam:UpdateAssumeRolePolicy",
+          "iam:PutRolePolicy",
+          "iam:DeleteRolePolicy",
+          "iam:GetRolePolicy",
+          "iam:ListRolePolicies",
+          "iam:AttachRolePolicy",
+          "iam:DetachRolePolicy",
+          "iam:ListAttachedRolePolicies",
+          "iam:ListInstanceProfilesForRole",
+          "iam:TagRole",
+          "iam:UntagRole",
+          "iam:ListRoleTags",
+          "iam:PassRole",
+        ]
+        Resource = "arn:aws:iam::*:role/desafio-ods-*"
+      },
+      {
+        Sid    = "ManageAppInstanceProfile"
+        Effect = "Allow"
+        Action = [
+          "iam:CreateInstanceProfile",
+          "iam:DeleteInstanceProfile",
+          "iam:GetInstanceProfile",
+          "iam:AddRoleToInstanceProfile",
+          "iam:RemoveRoleFromInstanceProfile",
+          "iam:TagInstanceProfile",
+          "iam:UntagInstanceProfile",
+        ]
+        Resource = "arn:aws:iam::*:instance-profile/desafio-ods-*"
+      },
+    ]
+  })
+}
+
 # Permite deploy via SSM (nao precisa SSH aberto pro runner do GitHub Actions).
 # Escopo restrito: SendCommand so em instancias com tag Project=desafio-ods.
 resource "aws_iam_user_policy" "ci_ssm" {
