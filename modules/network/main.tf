@@ -89,7 +89,7 @@ resource "aws_security_group" "app" {
   }
 
   ingress {
-    description = "API porta padrao NestJS — util para testar antes de por Cloudflare na frente"
+    description = "API porta padrao NestJS - util para testar antes de por Cloudflare na frente"
     from_port   = 3000
     to_port     = 3000
     protocol    = "tcp"
