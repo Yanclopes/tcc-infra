@@ -94,10 +94,11 @@ resource "aws_iam_user_policy_attachment" "ci_ec2" {
 }
 
 # Permite gerenciar S3 buckets do projeto (backups, futuros datasets, etc.)
-# com prefixo desafio-ods-*. Nao permite mexer em buckets de outros projetos.
-resource "aws_iam_user_policy" "ci_s3_app" {
+# com prefixo desafio-ods-*. Como managed policy: nao conta contra o limite
+# de 2048 bytes de inline policies por usuario.
+resource "aws_iam_policy" "ci_s3_app" {
   name = "${local.ci_user}-s3-app"
-  user = aws_iam_user.ci.name
+  path = "/ci/"
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -138,6 +139,11 @@ resource "aws_iam_user_policy" "ci_s3_app" {
       },
     ]
   })
+}
+
+resource "aws_iam_user_policy_attachment" "ci_s3_app" {
+  user       = aws_iam_user.ci.name
+  policy_arn = aws_iam_policy.ci_s3_app.arn
 }
 
 # Permite gerenciar IAM role + instance profile do EC2 (usado para dar permissao
