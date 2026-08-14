@@ -1,0 +1,5 @@
+# Copie para terraform.tfvars (que fica gitignored) se quiser sobrescrever
+# os defaults. Para o setup padrao, nem precisa criar o tfvars.
+
+# aws_region  = "us-east-1"
+# name_prefix = "desafio-ods"

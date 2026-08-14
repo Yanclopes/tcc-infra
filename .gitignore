@@ -1,0 +1,16 @@
+# State local (nunca commitar — pode conter segredos após apply)
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl.bak
+
+# Variáveis com valores reais (segredos, chaves)
+terraform.tfvars
+*.auto.tfvars
+!terraform.tfvars.example
+
+# Chaves SSH que forem geradas aqui
+*.pem
+id_rsa*
+id_ed25519*

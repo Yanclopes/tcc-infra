@@ -1,0 +1,114 @@
+name: Terraform
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'envs/**'
+      - 'modules/**'
+      - '.github/workflows/terraform.yml'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'envs/**'
+      - 'modules/**'
+      - '.github/workflows/terraform.yml'
+
+concurrency:
+  group: terraform-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false # nunca cancelar apply em curso
+
+env:
+  TF_VERSION: '1.9.8'
+  WORKING_DIR: envs/prod
+  # Credenciais AWS (do bootstrap)
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_REGION: us-east-1
+  # Config do backend S3 (do bootstrap)
+  TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
+  TF_LOCK_TABLE: ${{ secrets.TF_LOCK_TABLE }}
+  # Variaveis da aplicacao (TF_VAR_ pega automatico pelo Terraform)
+  TF_VAR_admin_ip: ${{ secrets.TF_VAR_ADMIN_IP }}
+  TF_VAR_ssh_public_key: ${{ secrets.TF_VAR_SSH_PUBLIC_KEY }}
+  TF_VAR_jwt_secret: ${{ secrets.TF_VAR_JWT_SECRET }}
+  TF_VAR_admin_password: ${{ secrets.TF_VAR_ADMIN_PASSWORD }}
+  TF_VAR_db_password: ${{ secrets.TF_VAR_DB_PASSWORD }}
+  TF_VAR_admin_email: ${{ secrets.TF_VAR_ADMIN_EMAIL }}
+  TF_VAR_cors_origins: ${{ secrets.TF_VAR_CORS_ORIGINS }}
+
+jobs:
+  plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIR }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform fmt
+        run: terraform fmt -check -recursive
+        working-directory: .
+
+      - name: Terraform init
+        run: |
+          terraform init \
+            -backend-config="bucket=${TF_STATE_BUCKET}" \
+            -backend-config="dynamodb_table=${TF_LOCK_TABLE}"
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform plan
+        id: plan
+        run: terraform plan -no-color -input=false -out=tfplan
+        continue-on-error: false
+
+      - name: Save plan artifact
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: ${{ env.WORKING_DIR }}/tfplan
+          retention-days: 5
+
+  apply:
+    name: Terraform Apply
+    needs: plan
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    environment: production # protection rule opcional na UI (required reviewers)
+    defaults:
+      run:
+        working-directory: ${{ env.WORKING_DIR }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform init
+        run: |
+          terraform init \
+            -backend-config="bucket=${TF_STATE_BUCKET}" \
+            -backend-config="dynamodb_table=${TF_LOCK_TABLE}"
+
+      - name: Download plan
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+          path: ${{ env.WORKING_DIR }}
+
+      - name: Terraform apply
+        run: terraform apply -input=false -auto-approve tfplan
+
+      - name: Show outputs
+        run: terraform output

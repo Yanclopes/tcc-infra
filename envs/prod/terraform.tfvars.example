@@ -1,0 +1,32 @@
+# Copie para terraform.tfvars e preencha. NUNCA commitar terraform.tfvars.
+
+# Regiao AWS (us-east-1 e a mais barata e completa)
+aws_region = "us-east-1"
+
+# Seu IP publico atual (descubra com: curl ifconfig.me)
+# Formato /32 = um unico IP. NUNCA use 0.0.0.0/0.
+admin_ip = "SEU_IP_PUBLICO/32"
+
+# Chave SSH publica local (gere com: ssh-keygen -t ed25519 -C "desafio-ods")
+# Cole o conteudo de ~/.ssh/id_ed25519.pub
+ssh_public_key = "ssh-ed25519 AAAA... comentario"
+
+# Segredos — gere valores fortes e unicos
+# openssl rand -base64 48
+jwt_secret = "TROQUE-POR-VALOR-DE-openssl-rand-base64-48"
+
+# openssl rand -base64 24
+admin_password = "TROQUE-POR-SENHA-FORTE"
+
+# openssl rand -base64 32
+db_password = "TROQUE-POR-SENHA-FORTE-DO-POSTGRES"
+
+admin_email = "seu-email@dominio.com"
+
+# Origem(ns) do frontend, separadas por virgula. Ex.:
+# "https://desafio-ods.example.com,https://desafio-ods-preview.pages.dev"
+cors_origins = "https://SEU-DOMINIO"
+
+# (opcional) Ajuste se estiver testando um fork ou branch diferente
+# backend_repo_url = "https://github.com/Yanclopes/tcc-backend.git"
+# backend_repo_ref = "master"
