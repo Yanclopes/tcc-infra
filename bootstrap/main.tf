@@ -93,6 +93,49 @@ resource "aws_iam_user_policy_attachment" "ci_ec2" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2FullAccess"
 }
 
+# Permite deploy via SSM (nao precisa SSH aberto pro runner do GitHub Actions).
+# Escopo restrito: SendCommand so em instancias com tag Project=desafio-ods.
+resource "aws_iam_user_policy" "ci_ssm" {
+  name = "${local.ci_user}-ssm"
+  user = aws_iam_user.ci.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "SendCommandDocument"
+        Effect = "Allow"
+        Action = ["ssm:SendCommand"]
+        Resource = [
+          "arn:aws:ssm:*::document/AWS-RunShellScript",
+        ]
+      },
+      {
+        Sid      = "SendCommandInstancesTagged"
+        Effect   = "Allow"
+        Action   = ["ssm:SendCommand"]
+        Resource = ["arn:aws:ec2:*:*:instance/*"]
+        Condition = {
+          StringEquals = {
+            "aws:ResourceTag/Project" = "desafio-ods"
+          }
+        }
+      },
+      {
+        Sid    = "InspectCommandsAndInstances"
+        Effect = "Allow"
+        Action = [
+          "ssm:GetCommandInvocation",
+          "ssm:ListCommandInvocations",
+          "ssm:DescribeInstanceInformation",
+          "ec2:DescribeInstances",
+        ]
+        Resource = "*"
+      },
+    ]
+  })
+}
+
 # Acesso restrito ao bucket de state e a tabela de lock — nada alem.
 resource "aws_iam_user_policy" "ci_state" {
   name = "${local.ci_user}-state"
