@@ -16,7 +16,7 @@ ENV_FILE=$APP_DIR/.env
 # ---- 1. Sistema base ----
 apt-get update -y
 DEBIAN_FRONTEND=noninteractive apt-get upgrade -y
-apt-get install -y ca-certificates curl gnupg git
+apt-get install -y ca-certificates curl gnupg git awscli
 
 # ---- 2. Docker + docker compose plugin (repositorio oficial) ----
 install -m 0755 -d /etc/apt/keyrings
@@ -86,5 +86,28 @@ done
 docker compose -f docker-compose.prod.yml exec -T api npm run migration:run:prod
 docker compose -f docker-compose.prod.yml exec -T api npm run seed:prod
 
+# ---- 7. Backup diario do Postgres para S3 (retencao 7 dias no bucket) ----
+cat > /usr/local/bin/ods-backup.sh <<'BACKUP_EOF'
+#!/bin/bash
+set -euo pipefail
+BUCKET="${backup_bucket}"
+STAMP=$$(date -u +%Y%m%dT%H%M%SZ)
+KEY="postgres/ods_quiz-$$STAMP.sql.gz"
+cd /opt/desafio-ods
+docker compose -f docker-compose.prod.yml exec -T postgres pg_dump -U ods ods_quiz \
+  | gzip \
+  | aws s3 cp - "s3://$$BUCKET/$$KEY"
+echo "[$$(date -u +%FT%TZ)] backup enviado: s3://$$BUCKET/$$KEY"
+BACKUP_EOF
+chmod 755 /usr/local/bin/ods-backup.sh
+
+# Cron diario as 03:00 UTC (~00:00 BRT)
+cat > /etc/cron.d/ods-backup <<'CRON_EOF'
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+0 3 * * * root /usr/local/bin/ods-backup.sh >> /var/log/ods-backup.log 2>&1
+CRON_EOF
+chmod 644 /etc/cron.d/ods-backup
+
 EIP=$(curl -s http://169.254.169.254/latest/meta-data/public-ipv4 || echo "unknown")
-echo "Bootstrap concluido. API disponivel em http://$EIP:3000/api/v1"
+echo "Bootstrap concluido. API em http://$EIP:3000/api/v1 · backups em s3://${backup_bucket}/"

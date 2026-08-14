@@ -57,6 +57,78 @@ resource "aws_iam_instance_profile" "app" {
   role = aws_iam_role.app.name
 }
 
+# =====================================================================
+# Backup do Postgres — bucket S3 privado com retencao de 7 dias.
+# Cron no EC2 (setup no user-data) faz `pg_dump | gzip | aws s3 cp -`.
+# =====================================================================
+resource "random_id" "backups_suffix" {
+  byte_length = 4
+}
+
+resource "aws_s3_bucket" "backups" {
+  bucket        = "${var.name_prefix}-db-backups-${random_id.backups_suffix.hex}"
+  force_destroy = false
+
+  tags = {
+    Purpose = "postgres-backups"
+  }
+}
+
+resource "aws_s3_bucket_public_access_block" "backups" {
+  bucket                  = aws_s3_bucket.backups.id
+  block_public_acls       = true
+  block_public_policy     = true
+  ignore_public_acls      = true
+  restrict_public_buckets = true
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "backups" {
+  bucket = aws_s3_bucket.backups.id
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "backups" {
+  bucket = aws_s3_bucket.backups.id
+
+  rule {
+    id     = "expire-after-7-days"
+    status = "Enabled"
+
+    filter {
+      prefix = ""
+    }
+
+    expiration {
+      days = 7
+    }
+
+    # Limpa uploads incompletos rapidamente pra nao acumular custo.
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 1
+    }
+  }
+}
+
+# Permissao pro EC2 gravar backups (escopo: so este bucket, so PutObject).
+resource "aws_iam_role_policy" "app_backup" {
+  name = "${var.name_prefix}-app-backup"
+  role = aws_iam_role.app.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid      = "PutBackupObjects"
+      Effect   = "Allow"
+      Action   = ["s3:PutObject"]
+      Resource = "${aws_s3_bucket.backups.arn}/*"
+    }]
+  })
+}
+
 resource "aws_instance" "app" {
   ami                    = data.aws_ami.ubuntu.id
   instance_type          = var.instance_type
@@ -80,6 +152,7 @@ resource "aws_instance" "app" {
     cors_origins     = var.cors_origins
     backend_repo_url = var.backend_repo_url
     backend_repo_ref = var.backend_repo_ref
+    backup_bucket    = aws_s3_bucket.backups.id
   })
   # Trigger recreation da instancia se o template mudar (opcional).
   user_data_replace_on_change = false
