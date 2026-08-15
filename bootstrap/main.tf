@@ -100,42 +100,16 @@ resource "aws_iam_policy" "ci_s3_app" {
   name = "${local.ci_user}-s3-app"
   path = "/ci/"
 
+  # s3:* mas ESCOPADO ao nome desafio-ods-* — CI so pode mexer em buckets
+  # deste projeto, nao afeta buckets de outros projetos da conta.
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Sid    = "ManageAppBuckets"
-        Effect = "Allow"
-        Action = [
-          "s3:CreateBucket",
-          "s3:DeleteBucket",
-          "s3:GetBucketLocation",
-          "s3:GetBucketVersioning",
-          "s3:PutBucketVersioning",
-          "s3:GetBucketPolicy",
-          "s3:PutBucketPolicy",
-          "s3:DeleteBucketPolicy",
-          "s3:GetBucketPublicAccessBlock",
-          "s3:PutBucketPublicAccessBlock",
-          "s3:GetEncryptionConfiguration",
-          "s3:PutEncryptionConfiguration",
-          "s3:GetLifecycleConfiguration",
-          "s3:PutLifecycleConfiguration",
-          "s3:GetBucketTagging",
-          "s3:PutBucketTagging",
-          "s3:ListBucket",
-        ]
-        Resource = "arn:aws:s3:::desafio-ods-*"
-      },
-      {
-        Sid    = "ManageAppBucketObjects"
-        Effect = "Allow"
-        Action = [
-          "s3:GetObject",
-          "s3:PutObject",
-          "s3:DeleteObject",
-        ]
-        Resource = "arn:aws:s3:::desafio-ods-*/*"
+        Sid      = "FullAccessAppBuckets"
+        Effect   = "Allow"
+        Action   = ["s3:*"]
+        Resource = ["arn:aws:s3:::desafio-ods-*", "arn:aws:s3:::desafio-ods-*/*"]
       },
     ]
   })
