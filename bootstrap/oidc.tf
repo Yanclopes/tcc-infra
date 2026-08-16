@@ -5,6 +5,14 @@
 #
 # Substitui o par (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY) do CI user
 # por um secret unico (AWS_ROLE_ARN) nos repos que assumem essa role.
+#
+# STATUS: PARKED. Este arquivo NAO e aplicado automaticamente — o
+# workflow terraform.yml roda apenas envs/prod. Para ativar:
+#   1. Exportar credenciais AWS admin (nao o CI user);
+#   2. terraform -chdir=bootstrap apply
+#   3. Copiar output ci_oidc_role_arn como secret AWS_ROLE_ARN nos repos;
+#   4. Trocar 'aws-access-key-id/secret' por 'role-to-assume' nos workflows;
+#   5. Adicionar 'permissions: id-token: write' nos jobs.
 # =====================================================================
 
 # Thumbprints do issuer OIDC do GitHub. Modern AWS valida via CA e ignora

@@ -18,15 +18,14 @@ concurrency:
   group: terraform-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false # nunca cancelar apply em curso
 
-permissions:
-  # OIDC: id-token:write permite trocar o token do GitHub por credenciais AWS
-  # curtas (~15 min). Substitui AWS_ACCESS_KEY_ID/SECRET long-lived.
-  id-token: write
-  contents: read
-
 env:
   TF_VERSION: '1.9.8'
   WORKING_DIR: envs/prod
+  # Credenciais AWS (do CI user do bootstrap).
+  # NOTA: bootstrap/oidc.tf existe pronto para migrar pra OIDC quando quiser
+  # rodar 'terraform -chdir=bootstrap apply' com credenciais admin.
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   AWS_REGION: us-east-1
   # Config do backend S3 (do bootstrap)
   TF_STATE_BUCKET: ${{ secrets.TF_STATE_BUCKET }}
@@ -54,12 +53,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
 
       - uses: hashicorp/setup-terraform@v3
         with:
@@ -103,12 +96,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Configure AWS credentials via OIDC
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
 
       - uses: hashicorp/setup-terraform@v3
         with:
