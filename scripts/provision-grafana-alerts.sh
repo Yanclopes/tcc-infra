@@ -27,7 +27,7 @@ echo ""
 echo "==> Criando/atualizando alert rules (PUT idempotente)"
 
 put_rule() {
-  local uid="$1" title="$2" pending="$3" query="$4" threshold_op="$5" threshold="$6" severity="$7" description="$8"
+  local uid="$1" title="$2" pending="$3" query="$4" threshold_op="$5" threshold="$6" severity="$7" description="$8" no_data="${9:-OK}"
 
   local payload
   payload=$(cat <<JSON
@@ -38,7 +38,7 @@ put_rule() {
   "ruleGroup": "$GROUP_NAME",
   "condition": "C",
   "for": "$pending",
-  "noDataState": "OK",
+  "noDataState": "$no_data",
   "execErrState": "Error",
   "labels": { "severity": "$severity", "service": "desafio-ods-api" },
   "annotations": { "summary": "$title", "description": "$description" },
@@ -112,8 +112,9 @@ JSON
 }
 
 put_rule "ods-a01-api-down" "API fora do ar" "2m" \
-  'up{instance="desafio-ods-api"}' "lt" 1 "critical" \
-  "Backend caiu ou Alloy perdeu contato com /metrics."
+  'process_start_time_seconds{instance="desafio-ods-api"}' "lt" 1 "critical" \
+  "Backend caiu ou Alloy perdeu contato com /metrics (serie desapareceu)." \
+  "Alerting"
 
 put_rule "ods-a02-5xx-rate" "Taxa de erro 5xx alta" "5m" \
   'sum(rate(http_requests_total{status_code=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))' "gt" 0.05 "warning" \
