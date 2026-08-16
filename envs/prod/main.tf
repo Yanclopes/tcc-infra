@@ -16,12 +16,15 @@ module "compute" {
   ssh_public_key    = var.ssh_public_key
 
   # Segredos e config passados ao bootstrap
-  jwt_secret       = var.jwt_secret
-  admin_email      = var.admin_email
-  admin_password   = var.admin_password
-  db_password      = var.db_password
-  metrics_password = var.metrics_password
-  cors_origins     = var.cors_origins
-  backend_repo_url = var.backend_repo_url
-  backend_repo_ref = var.backend_repo_ref
+  jwt_secret                    = var.jwt_secret
+  admin_email                   = var.admin_email
+  admin_password                = var.admin_password
+  db_password                   = var.db_password
+  metrics_password              = var.metrics_password
+  grafana_cloud_metrics_url     = var.grafana_cloud_metrics_url
+  grafana_cloud_metrics_user    = var.grafana_cloud_metrics_user
+  grafana_cloud_metrics_api_key = var.grafana_cloud_metrics_api_key
+  cors_origins                  = var.cors_origins
+  backend_repo_url              = var.backend_repo_url
+  backend_repo_ref              = var.backend_repo_ref
 }

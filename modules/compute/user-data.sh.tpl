@@ -67,6 +67,10 @@ ADMIN_PASSWORD=${admin_password}
 
 METRICS_USER=${metrics_user}
 METRICS_PASSWORD=${metrics_password}
+
+GRAFANA_CLOUD_METRICS_URL=${grafana_cloud_metrics_url}
+GRAFANA_CLOUD_METRICS_USER=${grafana_cloud_metrics_user}
+GRAFANA_CLOUD_METRICS_API_KEY=${grafana_cloud_metrics_api_key}
 EOF
 
 chmod 600 $ENV_FILE

@@ -63,6 +63,27 @@ variable "metrics_password" {
   sensitive   = true
 }
 
+# ---------- Grafana Cloud (Alloy remote_write) ----------
+
+variable "grafana_cloud_metrics_url" {
+  description = "URL de remote_write do Prometheus hospedado no Grafana Cloud (ex.: https://prometheus-prod-XX-prod-YY.grafana.net/api/prom/push)."
+  type        = string
+  default     = ""
+}
+
+variable "grafana_cloud_metrics_user" {
+  description = "Instance ID (usuario) do stack Grafana Cloud usado no Basic Auth do remote_write."
+  type        = string
+  default     = ""
+}
+
+variable "grafana_cloud_metrics_api_key" {
+  description = "API key (glc_...) do stack Grafana Cloud usado como senha no remote_write. Rotacionavel em Access Policies."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
 variable "cors_origins" {
   type = string
 }

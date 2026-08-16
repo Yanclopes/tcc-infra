@@ -36,6 +36,10 @@ env:
   TF_VAR_db_password: ${{ secrets.TF_VAR_DB_PASSWORD }}
   TF_VAR_admin_email: ${{ secrets.TF_VAR_ADMIN_EMAIL }}
   TF_VAR_cors_origins: ${{ secrets.TF_VAR_CORS_ORIGINS }}
+  TF_VAR_metrics_password: ${{ secrets.TF_VAR_METRICS_PASSWORD }}
+  TF_VAR_grafana_cloud_metrics_url: ${{ secrets.TF_VAR_GRAFANA_CLOUD_METRICS_URL }}
+  TF_VAR_grafana_cloud_metrics_user: ${{ secrets.TF_VAR_GRAFANA_CLOUD_METRICS_USER }}
+  TF_VAR_grafana_cloud_metrics_api_key: ${{ secrets.TF_VAR_GRAFANA_CLOUD_METRICS_API_KEY }}
 
 jobs:
   plan:
