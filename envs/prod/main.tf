@@ -20,6 +20,7 @@ module "compute" {
   admin_email      = var.admin_email
   admin_password   = var.admin_password
   db_password      = var.db_password
+  metrics_password = var.metrics_password
   cors_origins     = var.cors_origins
   backend_repo_url = var.backend_repo_url
   backend_repo_ref = var.backend_repo_ref

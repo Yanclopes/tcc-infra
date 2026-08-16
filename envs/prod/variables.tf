@@ -40,6 +40,12 @@ variable "db_password" {
   sensitive   = true
 }
 
+variable "metrics_password" {
+  description = "Senha Basic Auth para o endpoint /metrics (scrape do Prometheus/Grafana Cloud). Gere com: openssl rand -base64 32"
+  type        = string
+  sensitive   = true
+}
+
 variable "cors_origins" {
   description = "Origens permitidas no CORS, separadas por virgula. Ex.: 'https://desafio-ods.example.com'."
   type        = string

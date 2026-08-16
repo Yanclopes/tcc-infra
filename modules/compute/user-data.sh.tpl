@@ -64,6 +64,9 @@ GAME_DEFAULT_POWERUPS=3
 
 ADMIN_EMAIL=${admin_email}
 ADMIN_PASSWORD=${admin_password}
+
+METRICS_USER=${metrics_user}
+METRICS_PASSWORD=${metrics_password}
 EOF
 
 chmod 600 $ENV_FILE

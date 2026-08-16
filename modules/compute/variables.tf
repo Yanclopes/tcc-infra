@@ -51,6 +51,18 @@ variable "db_password" {
   sensitive = true
 }
 
+variable "metrics_user" {
+  description = "Usuario Basic Auth para o endpoint /metrics."
+  type        = string
+  default     = "metrics"
+}
+
+variable "metrics_password" {
+  description = "Senha Basic Auth para o endpoint /metrics."
+  type        = string
+  sensitive   = true
+}
+
 variable "cors_origins" {
   type = string
 }
