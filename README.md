@@ -233,6 +233,61 @@ scp ubuntu@<eip>:~/ods-backup-*.sql.gz .
 
 Automatizar com cron + upload S3 é a evolução natural (S3 free tier: 5GB).
 
+> **Restore com pgvector**: desde a introdução do assistente de IA, o banco usa
+> a extensão `vector` e a tabela `chat_trecho` tem coluna `vector(1536)`. Um
+> dump que contenha essa coluna **só restaura num Postgres que tenha a extensão
+> instalada** — use a imagem `pgvector/pgvector:pg16`, não a `postgres:16-alpine`.
+
+### Migração do Postgres para a imagem com pgvector
+
+Necessária uma única vez, para habilitar o assistente de IA. **Não troque a
+imagem sobre o volume existente.**
+
+A imagem antiga (`postgres:16-alpine`) é baseada em musl; a do pgvector é
+Debian/glibc, e o pgvector não publica variante Alpine. As duas libcs ordenam
+texto de forma diferente, e índices btree sobre texto são construídos na ordem
+da collation. Trocar a imagem mantendo o volume deixa os índices inconsistentes
+**sem gerar erro** — apenas deixando de encontrar linhas que existem. Há 7
+índices nessa condição no schema, sendo dois críticos: `app_user_email_key`
+(UNIQUE em e-mail) e `game_pkey` (PK sobre UUID).
+
+O procedimento correto é dump e restore em volume novo, o que reconstrói os
+índices sob a nova collation:
+
+```bash
+ssh ubuntu@<eip>
+cd ~/tcc-backend
+
+# 1. Backup verificado (confira o número de tabelas antes de prosseguir)
+docker compose -f docker-compose.prod.yml exec -T postgres \
+  pg_dump -U ods --no-owner --no-acl ods_quiz > ~/pre-pgvector.sql
+grep -c '^CREATE TABLE' ~/pre-pgvector.sql
+
+# 2. Derruba e descarta o volume ANTIGO (nomeie explicitamente; não use down -v)
+docker compose -f docker-compose.prod.yml down
+docker volume rm tcc-backend_postgres_data
+
+# 3. Sobe a imagem nova (já apontada no compose) e restaura
+docker compose -f docker-compose.prod.yml up -d postgres
+gunzip -c ~/pre-pgvector.sql 2>/dev/null || cat ~/pre-pgvector.sql | \
+  docker compose -f docker-compose.prod.yml exec -T postgres psql -U ods -d ods_quiz
+
+# 4. Confere e sobe o resto
+docker compose -f docker-compose.prod.yml exec -T postgres \
+  psql -U ods -d ods_quiz -c "select version();" -c "\\dt"
+docker compose -f docker-compose.prod.yml up -d
+```
+
+Depois disso, rode a migration e a indexação:
+
+```bash
+docker compose -f docker-compose.prod.yml exec -T api npm run migration:run:prod
+docker compose -f docker-compose.prod.yml exec -T api npm run chat:indexar:prod
+```
+
+A indexação exige `OPENAI_API_KEY` no `.env` do EC2. Sem ela o módulo de chat
+sobe desabilitado (rotas respondem 503) e o resto da plataforma segue normal.
+
 ### Destruir tudo
 
 ```bash
