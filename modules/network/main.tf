@@ -56,12 +56,51 @@ resource "aws_route_table_association" "public" {
 }
 
 # ---------------------------------------------------------------------
-# Security group: SSH restrito ao IP do admin; HTTP/HTTPS/3000 abertos
-# porque a API sera exposta atras da Cloudflare (que faz DDoS/WAF/CDN).
+# Faixas de IP da Cloudflare, buscadas na fonte oficial.
+#
+# Nao ficam fixas no codigo de proposito: a Cloudflare acrescenta faixas de
+# tempos em tempos, e uma lista velha aqui significa usuarios recebendo conexao
+# recusada sem nenhum sinal no sistema. Buscando, um `terraform plan` mostra a
+# mudanca no dia em que ela acontece.
+#
+# A contrapartida e que o plan passa a depender de alcancar cloudflare.com. A
+# postcondition abaixo transforma uma resposta vazia ou truncada em erro de plan
+# — falha barulhenta e sem efeito — em vez de um security group que bloqueia a
+# Cloudflare inteira.
+# ---------------------------------------------------------------------
+data "http" "cloudflare_ipv4" {
+  url = "https://www.cloudflare.com/ips-v4"
+
+  lifecycle {
+    postcondition {
+      condition     = length(compact(split("\n", chomp(self.response_body)))) >= 10
+      error_message = "Lista de IPv4 da Cloudflare veio com menos faixas do que o esperado; abortando para nao trancar a origem."
+    }
+  }
+}
+
+locals {
+  cloudflare_ipv4 = compact(split("\n", chomp(data.http.cloudflare_ipv4.response_body)))
+}
+
+# ---------------------------------------------------------------------
+# Security group: SSH restrito ao IP do admin; a porta da aplicacao aberta
+# SOMENTE para a Cloudflare.
+#
+# Antes, 80, 443 e 3000 estavam abertas para 0.0.0.0/0. Duas consequencias:
+#
+#   1. Qualquer um alcancava a origem pelo IP publico e contornava por completo
+#      o WAF e o rate limit da Cloudflare — havia registro disso nos logs.
+#   2. O cabecalho `CF-Connecting-IP`, que a aplicacao usa para identificar o
+#      usuario no rate limit, era forjavel por quem falasse direto com a origem.
+#      Restringir aqui e o que torna aquele cabecalho confiavel.
+#
+# 80 e 443 foram removidas: nao ha nada escutando nelas (sem nginx, sem proxy
+# reverso). A Cloudflare fala com a origem na 3000, via Origin Rule.
 # ---------------------------------------------------------------------
 resource "aws_security_group" "app" {
   name        = "${var.name_prefix}-app-sg"
-  description = "SSH restrito, HTTP/HTTPS/3000 abertos (proxy Cloudflare na frente)"
+  description = "SSH restrito ao admin; porta da aplicacao restrita a Cloudflare"
   vpc_id      = aws_vpc.main.id
 
   ingress {
@@ -73,27 +112,11 @@ resource "aws_security_group" "app" {
   }
 
   ingress {
-    description = "HTTP publico (Cloudflare origem)"
-    from_port   = 80
-    to_port     = 80
+    description = "Aplicacao - somente da borda da Cloudflare"
+    from_port   = var.app_port
+    to_port     = var.app_port
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description = "HTTPS publico (Cloudflare origem, se configurar cert na origem)"
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    description = "API porta padrao NestJS - util para testar antes de por Cloudflare na frente"
-    from_port   = 3000
-    to_port     = 3000
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    cidr_blocks = local.cloudflare_ipv4
   }
 
   egress {

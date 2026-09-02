@@ -32,6 +32,24 @@ apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin do
 # Permite o usuario ubuntu rodar docker sem sudo (efetivo no proximo login)
 usermod -aG docker ubuntu
 
+# ---- 2.5. Swap ----
+# A t3.micro tem 914 MB utilizaveis e nenhum swap por padrao. Sem swap, um pico
+# de memoria nao degrada o desempenho: o OOM killer mata um processo na hora, e
+# a vitima pode ser o Postgres. Com 2 GB de swap o sistema fica lento sob pico em
+# vez de perder um servico — o comportamento que se quer num servidor pequeno.
+#
+# swappiness baixo (10) porque swap aqui e rede de seguranca, nao area de
+# trabalho: so deve ser tocado sob pressao real de memoria.
+if [ ! -f /swapfile ]; then
+  fallocate -l 2G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=2048
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  grep -q '^/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+  sysctl -w vm.swappiness=10
+  grep -q '^vm.swappiness' /etc/sysctl.conf || echo 'vm.swappiness=10' >> /etc/sysctl.conf
+fi
+
 # ---- 3. Clone do backend ----
 mkdir -p $APP_DIR
 git clone --branch ${backend_repo_ref} ${backend_repo_url} $APP_DIR
