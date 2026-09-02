@@ -19,3 +19,9 @@ variable "admin_ip" {
   description = "IP autorizado a fazer SSH (formato X.X.X.X/32)."
   type        = string
 }
+
+variable "app_port" {
+  description = "Porta em que a aplicacao escuta na origem e que a Cloudflare acessa."
+  type        = number
+  default     = 3000
+}
