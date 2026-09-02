@@ -99,8 +99,22 @@ locals {
 # reverso). A Cloudflare fala com a origem na 3000, via Origin Rule.
 # ---------------------------------------------------------------------
 resource "aws_security_group" "app" {
-  name        = "${var.name_prefix}-app-sg"
-  description = "SSH restrito ao admin; porta da aplicacao restrita a Cloudflare"
+  name = "${var.name_prefix}-app-sg"
+
+  # A description NAO acompanha mais o que o grupo faz, e isso e deliberado: no
+  # AWS ela e imutavel, entao alterar este texto forca a SUBSTITUICAO do security
+  # group. Substituir um grupo que esta preso a uma instancia viva significa
+  # `terraform destroy` do antigo enquanto ainda esta em uso — DependencyViolation
+  # no meio do apply, com o estado ja parcialmente escrito.
+  #
+  # As regras de ingress, ao contrario, sao mutaveis e mudam no lugar. Deixando a
+  # description parada, este arquivo aplica sem downtime. Corrigi-la exigiria
+  # migrar para `name_prefix` + `create_before_destroy`, o que e uma mudanca
+  # maior e com risco proprio; nao vale carregar junto com uma correcao de
+  # seguranca que precisa entrar rapido.
+  #
+  # O que o grupo realmente faz esta no bloco de comentario acima.
+  description = "SSH restrito, HTTP/HTTPS/3000 abertos (proxy Cloudflare na frente)"
   vpc_id      = aws_vpc.main.id
 
   ingress {
